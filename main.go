@@ -59,8 +59,11 @@ func main() {
 				if err != nil {
 					log.Println(err)
 				} else {
-
-					fmt.Printf("Finished single transform scan of target %s:%s\n Support for %d/%d,%d,%d,%d aggressive mode: %t in IKEv1 is available\n", target.IP, target.Port, sa.EncAlgo, sa.KeyLength, sa.HashAlgo, sa.AuthMethod, sa.DhGroup, sa.AggressiveMode)
+					mode := "main"
+					if sa.AggressiveMode {
+						mode = "agressive"
+					}
+					fmt.Printf("Finished single transform scan of target %s:%s\n Support for %d/%d,%d,%d,%d in IKEv1 %s mode  is available\n", target.IP, target.Port, sa.EncAlgo, sa.KeyLength, sa.HashAlgo, sa.AuthMethod, sa.DhGroup, mode)
 				}
 			}
 		}
