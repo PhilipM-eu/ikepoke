@@ -61,7 +61,7 @@ func main() {
 				} else {
 					mode := "main"
 					if sa.AggressiveMode {
-						mode = "agressive"
+						mode = "aggressive"
 					}
 					fmt.Printf("Finished single transform scan of target %s:%s\n Support for %d/%d,%d,%d,%d in IKEv1 %s mode  is available\n", target.IP, target.Port, sa.EncAlgo, sa.KeyLength, sa.HashAlgo, sa.AuthMethod, sa.DhGroup, mode)
 				}
@@ -114,7 +114,7 @@ func initFlags() *ikeoptions.Options {
 	flag.StringVar(&selectedOptions.TargetString, "t", "", "sets the  target to be used. Format: <IP>:<Port>")
 
 	flag.StringVar(&selectedOptions.TransformIKEv1, "transformv1", "", "Sets the single transform to usefor ikev1. Syntax: EncAlgo/KeyLen,HashAlgo,AuthMethod,DHGroup\n Example: 7/256,2,1,14 ")
-	flag.StringVar(&selectedOptions.TransformIKEv2, "transformv2", "", "Sets the single transform to use for ikev2. Syntax: EncAlgo/KeyLen,PRFAlgo,IntegAlgo,DHGroup\n Example: 7/256,7,0,14 \n Note that AEAD enc algos such as 14-20 ignore the integrity algorithm. ")
+	flag.StringVar(&selectedOptions.TransformIKEv2, "transformv2", "", "Sets the single transform to use for ikev2. Syntax: EncAlgo/KeyLen,PRFAlgo,IntegAlgo,DHGroup\n Example: 20/256,7,0,14 \n Note that AEAD enc algos such as 14-20 ignore the integrity algorithm. ")
 	flag.StringVar(&selectedOptions.PSK, "psk", "", "Sets the Pre-shared key to use for authentication via IKEv2")
 	flag.StringVar(&selectedOptions.TargetsFilepath, "f", "", "sets the file path to read a list of targets from. The targets need to be formatted as one <IP>:<Port> per line. ")
 	flag.BoolVar(&selectedOptions.Help, "help", false, "Prints the help and exits")
