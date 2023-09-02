@@ -55,7 +55,7 @@ func main() {
 
 			for _, target := range targetList {
 				fmt.Printf("Sending single transform IKEv1 scan of target %s:%s\n \n", target.IP, target.Port)
-				err, _, _, _, _, _ := scanning.SendIKEPhase1(selOptions.LocalIP, selOptions.GetPort(), target.IP, target.Port, sa, selOptions.Timeout)
+				err, _, _, _, _, _ := scanning.SendIKEPhase1(selOptions.LocalIP, selOptions.GetPort(), target.IP, target.Port, sa, selOptions.Timeout, selOptions.Verbose)
 				if err != nil {
 					log.Println(err)
 				} else {
@@ -77,7 +77,7 @@ func main() {
 
 			for _, target := range targetList {
 				fmt.Printf("Sending single transform IKEv2 scan of target %s:%s\n \n", target.IP, target.Port)
-				err, _, _, _, _, _ := scanning.SendSAInitAndGetChosenAlgos(selOptions.LocalIP, selOptions.GetPort(), target.IP, target.Port, sa, selOptions.Timeout)
+				err, _, _, _, _, _ := scanning.SendSAInitAndGetChosenAlgos(selOptions.LocalIP, selOptions.GetPort(), target.IP, target.Port, sa, selOptions.Timeout, selOptions.Verbose)
 				if err != nil {
 					log.Println(err)
 				} else {
@@ -88,7 +88,7 @@ func main() {
 		}
 	}
 	if selOptions.Cve202330570 && len(targetList) > 0 {
-		exploits.CVE202330570(selOptions.LocalIP, selOptions.GetPort(), targetList[0], selOptions.Timeout)
+		exploits.CVE202330570(selOptions.LocalIP, selOptions.GetPort(), targetList[0], selOptions.Timeout, selOptions.Verbose)
 	}
 	if selOptions.Cve202323009 && len(targetList) > 0 {
 		if selOptions.PSK == "" {
@@ -100,7 +100,7 @@ func main() {
 			fmt.Printf("Could not connect and authenticate to target %s. Connection error: %s\nAborting DoS attempt.\n", targetList[0].IP, err)
 			return
 		}
-		exploits.CVE202323009(selOptions.LocalIP, selOptions.GetPort(), targetList[0], []byte(selOptions.PSK), selOptions.Timeout)
+		exploits.CVE202323009(selOptions.LocalIP, selOptions.GetPort(), targetList[0], []byte(selOptions.PSK), selOptions.Timeout, selOptions.Verbose)
 	}
 	//target.CryptoIKEv2.AddEnc(20, 256)
 	//session.SendIKEv1InitMainMode()

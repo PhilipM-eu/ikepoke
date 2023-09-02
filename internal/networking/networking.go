@@ -1,7 +1,7 @@
 package networking
 
 import (
-	"fmt"
+	"log"
 	"net"
 	"time"
 )
@@ -11,17 +11,17 @@ func SendIKEPacket(data []byte, sourceip, sourceport string, destip string, dest
 	// fixed for now. Get interface from user in later version
 	laddr, err := net.ResolveUDPAddr("udp", sourceip+":"+sourceport)
 	if err != nil {
-		fmt.Println("resolveErrLocal")
-		fmt.Println(err)
+
+		log.Printf("Could not resolve local address %s\n", err)
 	}
 	raddr, err := net.ResolveUDPAddr("udp", destip+":"+destport)
 	if err != nil {
-		fmt.Println("resolvErrRemote")
-		fmt.Println(err)
+		log.Printf("Could not resolve remote address %s\n", err)
 	}
 	connection, err := net.DialUDP("udp", laddr, raddr)
 	if err != nil {
-		fmt.Println(err)
+
+		log.Printf("Error during connection setup %s\n", err)
 		return nil, err
 	}
 	defer connection.Close()

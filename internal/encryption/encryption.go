@@ -15,8 +15,8 @@ import (
 	"hash"
 	"io"
 
-	"github.com/monnand/dhkx"
 	"github.com/PhilipM-eu/ikepoke/internal/IKEConst"
+	"github.com/monnand/dhkx"
 )
 
 func GenECDH(algo int) ([]byte, *ecdh.PrivateKey, error) {
@@ -223,8 +223,6 @@ func EncryptPayload(algo byte, payload, key, extraData []byte) ([]byte, []byte) 
 }
 func PadPlaintext(plaintext []byte, blocksize int) []byte {
 	difference := len(plaintext) % blocksize
-	fmt.Println(difference, len(plaintext))
-
 	padLength := blocksize - difference
 	if len(plaintext)%blocksize == 0 {
 		padLength = 0

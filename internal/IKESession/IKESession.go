@@ -28,6 +28,7 @@ type Session struct {
 	SessionKeys  SessionKeysIKEv2
 	firstPacket  []byte
 	Timeout      int
+	Verbose      bool
 }
 type SessionKeysIKEv2 struct {
 	encAlgo      uint16
@@ -61,7 +62,7 @@ func (s *Session) PrintSessionKeys() {
 	fmt.Printf("sk_pr: 0x%x\n", s.SessionKeys.skpr)
 
 }
-func NewSession(localip, localport string, remoteip string, remoteport string, timeout int) Session {
+func NewSession(localip, localport string, remoteip string, remoteport string, timeout int, verbose bool) Session {
 	session := Session{}
 	// each session should have a unique SPI. This does not have to cryptographically secure
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -72,6 +73,7 @@ func NewSession(localip, localport string, remoteip string, remoteport string, t
 	session.RemoteIP = remoteip
 	session.RemotePort = remoteport
 	session.Timeout = timeout
+	session.Verbose = verbose
 	session.SessionKeys = SessionKeysIKEv2{}
 	return session
 }
@@ -216,9 +218,9 @@ func (s *Session) SendIKEv1InitAggressiveMode(encAlgos map[uint16]uint16, prfAlg
 	rand.Read(nonce)
 	packet.AddNonce(nonce)
 	//id payload
-	//packet.AddIdentification(3, 17, 0, []byte("test"))
+	packet.AddIdentification(3, 17, 0, []byte("test"))
 
-	packet.AddIdentification(1, 17, 0, []byte{192, 168, 1, 100})
+	//packet.AddIdentification(1, 17, 0, []byte{192, 168, 1, 100})
 	// sending packet
 	packetBytes := packet.Serialize()
 	responseBytes, err := networking.SendIKEPacket(packetBytes, s.LocalIP, s.LocalPort, s.RemoteIP, s.RemotePort, s.Timeout)
@@ -291,7 +293,9 @@ func (s *Session) SendIKEv2SA(encAlgos map[uint16]uint16, prfAlgo, integAlgo, ke
 	responseBytes, err := networking.SendIKEPacket(packetBytes, s.LocalIP, s.LocalPort, s.RemoteIP, s.RemotePort, s.Timeout)
 
 	if err != nil {
-		log.Println(err)
+		if s.Verbose {
+			log.Println(err)
+		}
 		return err, IKEv2.IKEv2{}
 	}
 	return parseResponse(responseBytes)
@@ -341,7 +345,9 @@ func (s *Session) SendIKEv2AUTH(auth Auth) (error, IKEv2.IKEv2) {
 	// encryption part
 	err, response := s.SendEncryptedIKEv2Packet(&packet)
 	if err != nil {
-		log.Println(err)
+		if s.Verbose {
+			log.Println(err)
+		}
 		return err, IKEv2.IKEv2{}
 	}
 	return err, response
@@ -366,7 +372,9 @@ func (s *Session) SendEncryptedIKEv2Packet(packet *IKEv2.IKEv2) (error, IKEv2.IK
 
 	responseBytes, err := networking.SendIKEPacket(packet.Serialize(), s.LocalIP, s.LocalPort, s.RemoteIP, s.RemotePort, s.Timeout)
 	if err != nil {
-		log.Println(err)
+		if s.Verbose {
+			log.Println(err)
+		}
 		return err, IKEv2.IKEv2{}
 	}
 	return parseResponse(responseBytes)

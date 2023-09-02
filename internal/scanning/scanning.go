@@ -33,17 +33,17 @@ type ScanJob struct {
 	ResultChan chan ScanResult
 }
 
-func worker(jobChannel <-chan ScanJob, srcIP, srcPort string) {
+func worker(jobChannel <-chan ScanJob, srcIP, srcPort string, verbose bool) {
 	for job := range jobChannel {
 		var err error = nil
 		switch job.sa.GetType() {
 		case 0:
 			ikev1SA := job.sa.(*transforms.SingleSAIKEv1)
-			err, _, _, _, _, _ = SendIKEPhase1(srcIP, srcPort, job.targetIP, job.targetPort, *ikev1SA, job.timeout)
+			err, _, _, _, _, _ = SendIKEPhase1(srcIP, srcPort, job.targetIP, job.targetPort, *ikev1SA, job.timeout, verbose)
 
 		case 1:
 			ikev2SA := job.sa.(*transforms.SingleSAIKEv2)
-			err, _, _, _, _, _ = SendSAInitAndGetChosenAlgos(srcIP, srcPort, job.targetIP, job.targetPort, *ikev2SA, job.timeout)
+			err, _, _, _, _, _ = SendSAInitAndGetChosenAlgos(srcIP, srcPort, job.targetIP, job.targetPort, *ikev2SA, job.timeout, verbose)
 		default:
 			err = errors.New("Unknown mode")
 
@@ -87,7 +87,7 @@ func JobControl(targets []*targets.Target, selOptions options.Options) {
 	resultChannel := make(chan ScanResult, selOptions.Worker)
 	for i := 0; i < selOptions.Worker; i++ {
 		// each worker gets their own port - this will not work with a set src port
-		go worker(jobChannel, selOptions.LocalIP, selOptions.GetPort())
+		go worker(jobChannel, selOptions.LocalIP, selOptions.GetPort(), selOptions.Verbose)
 
 	}
 
@@ -309,7 +309,7 @@ func ScanTarget(target *targets.Target, selOptions options.Options) {
 	}
 	target.PrintResults()
 }
-func ScanIKEv1(srcIP, srcPort string, target *targets.Target, status bool, mode byte, aggressiveMode bool, timeout int) {
+func ScanIKEv1(srcIP, srcPort string, target *targets.Target, verbose bool, mode byte, aggressiveMode bool, timeout int) {
 	if !target.IKEv1Supported {
 		fmt.Printf("Target:%s:%s does not support IKEv1 - skipping scan of transforms", target.IP, target.Port)
 		return
@@ -317,14 +317,14 @@ func ScanIKEv1(srcIP, srcPort string, target *targets.Target, status bool, mode 
 	}
 	scan := Scan{Mode: mode}
 	sas := scan.GetIKEv1SAs(aggressiveMode)
-	ScanMultipleSAsIKEv1(srcIP, srcPort, target, sas, status, timeout)
+	ScanMultipleSAsIKEv1(srcIP, srcPort, target, sas, verbose, timeout)
 }
-func ScanMultipleSAsIKEv1(srcIP, srcPort string, target *targets.Target, sas []transforms.SingleSAIKEv1, status bool, timeout int) {
+func ScanMultipleSAsIKEv1(srcIP, srcPort string, target *targets.Target, sas []transforms.SingleSAIKEv1, verbose bool, timeout int) {
 	fmt.Printf("Starting scan of available IKEv1 transforms for target %s:%s\n", target.IP, target.Port)
 	fmt.Printf("\033[s")
 	for i, sa := range sas {
 		//SendIKEv1InitMainMode
-		err, enc, keyLength, hashAlgo, dhGroup, authMethod := SendIKEPhase1(srcIP, srcPort, target.IP, target.Port, sa, timeout)
+		err, enc, keyLength, hashAlgo, dhGroup, authMethod := SendIKEPhase1(srcIP, srcPort, target.IP, target.Port, sa, timeout, verbose)
 		if err == nil {
 
 			target.CryptoIKEv1.AddEnc(enc, keyLength)
@@ -332,7 +332,7 @@ func ScanMultipleSAsIKEv1(srcIP, srcPort string, target *targets.Target, sas []t
 			target.CryptoIKEv1.AddDHGroup(dhGroup)
 			target.CryptoIKEv1.AddAuthMethod(authMethod)
 		}
-		if i%(len(sas)/100) == 0 && status {
+		if i%(len(sas)/100) == 0 && verbose {
 			fmt.Printf("\033[u\033[K")
 			fmt.Printf("Status %d of %d IKEv1 Transforms done ", i, len(sas))
 
@@ -342,13 +342,13 @@ func ScanMultipleSAsIKEv1(srcIP, srcPort string, target *targets.Target, sas []t
 
 	//fmt.Printf("Target struct: %+v\n", target)
 }
-func ScanMultipleSAsIKEv2(srcIP, srcPort string, target *targets.Target, sas []transforms.SingleSAIKEv2, status bool, timeout int) {
+func ScanMultipleSAsIKEv2(srcIP, srcPort string, target *targets.Target, sas []transforms.SingleSAIKEv2, verbose bool, timeout int) {
 
 	fmt.Printf("Starting scan of available IKEv2 transforms for target %s:%s\n", target.IP, target.Port)
 	fmt.Printf("\033[s")
 	for i, sa := range sas {
 
-		err, enc, keyLength, prf, integ, dhGroup := SendSAInitAndGetChosenAlgos(srcIP, srcPort, target.IP, target.Port, sa, timeout)
+		err, enc, keyLength, prf, integ, dhGroup := SendSAInitAndGetChosenAlgos(srcIP, srcPort, target.IP, target.Port, sa, timeout, verbose)
 		if err == nil {
 
 			target.CryptoIKEv2.AddEnc(enc, keyLength)
@@ -356,7 +356,7 @@ func ScanMultipleSAsIKEv2(srcIP, srcPort string, target *targets.Target, sas []t
 			target.CryptoIKEv2.AddInteg(integ)
 			target.CryptoIKEv2.AddDHGroup(dhGroup)
 		}
-		if i%(len(sas)/100) == 0 && status {
+		if i%(len(sas)/100) == 0 && verbose {
 			fmt.Printf("\033[u\033[K")
 			fmt.Printf("Status %d of %d IKEv2 Transforms done ", i, len(sas))
 
@@ -378,9 +378,9 @@ func ScanIKEv2(srcIP, srcPort string, target *targets.Target, status bool, mode 
 	ScanMultipleSAsIKEv2(srcIP, srcPort, target, sas, status, timeout)
 
 }
-func SendIKEPhase1(srcIP, srcPort, targetIP, targetPort string, sa transforms.SingleSAIKEv1, timeout int) (error, uint16, uint16, uint16, uint16, uint16) {
+func SendIKEPhase1(srcIP, srcPort, targetIP, targetPort string, sa transforms.SingleSAIKEv1, timeout int, verbose bool) (error, uint16, uint16, uint16, uint16, uint16) {
 
-	session := IKESession.NewSession(srcIP, srcPort, targetIP, targetPort, timeout)
+	session := IKESession.NewSession(srcIP, srcPort, targetIP, targetPort, timeout, verbose)
 	// 7: 256}, 6, 14, 1)
 	var response IKEv1.IKEv1
 	var err error
@@ -409,9 +409,9 @@ func SendIKEPhase1(srcIP, srcPort, targetIP, targetPort string, sa transforms.Si
 
 }
 
-func SendSAInitAndGetChosenAlgos(srcIP, srcPort, targetIP, targetPort string, sa transforms.SingleSAIKEv2, timeout int) (error, uint16, uint16, uint16, uint16, uint16) {
+func SendSAInitAndGetChosenAlgos(srcIP, srcPort, targetIP, targetPort string, sa transforms.SingleSAIKEv2, timeout int, verbose bool) (error, uint16, uint16, uint16, uint16, uint16) {
 
-	session := IKESession.NewSession(srcIP, srcPort, targetIP, targetPort, timeout)
+	session := IKESession.NewSession(srcIP, srcPort, targetIP, targetPort, timeout, verbose)
 	err, response := session.SendIKEv2SA(map[uint16]uint16{sa.EncAlgo: sa.KeyLength}, sa.PRFAlgo, sa.IntegAlgo, sa.DhGroup)
 	if err != nil {
 		return err, 0, 0, 0, 0, 0
