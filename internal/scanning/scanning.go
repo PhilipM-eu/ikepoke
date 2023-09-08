@@ -85,10 +85,13 @@ func JobControl(targets []*targets.Target, selOptions options.Options) {
 	// the job queue needs to be large enough to hold all jobs -> therefore its buffer is the added length of both SA slices times the targets
 	jobChannel := make(chan ScanJob, (len(ikev1SAs)+len(ikev2SAs))*len(targets))
 	resultChannel := make(chan ScanResult, selOptions.Worker)
+	//close channels at the end of the function call
+	defer close(jobChannel)
+	defer close(resultChannel)
+
 	for i := 0; i < selOptions.Worker; i++ {
 		// each worker gets their own port - this will not work with a set src port
 		go worker(jobChannel, selOptions.LocalIP, selOptions.GetPort(), selOptions.Verbose)
-
 	}
 
 	jobCounter := 0
@@ -138,7 +141,9 @@ func JobControl(targets []*targets.Target, selOptions options.Options) {
 		parameters += "IKEv2"
 	}
 	fmt.Printf("%s\n", parameters)
-	fmt.Printf("\033[s")
+	if selOptions.Verbose {
+		fmt.Printf("\033[s")
+	}
 	maxJobs := jobCounter
 	for result := range resultChannel {
 		if result.err == nil && targets[result.ID] != nil {
@@ -161,7 +166,7 @@ func JobControl(targets []*targets.Target, selOptions options.Options) {
 			}
 		}
 		jobCounter--
-		if (maxJobs-jobCounter)%(maxJobs/100) == 0 {
+		if selOptions.Verbose && (maxJobs-jobCounter)%(maxJobs/100) == 0 {
 			fmt.Printf("\033[u\033[K")
 			fmt.Printf("Status %d of %d Transforms done ", maxJobs-jobCounter, maxJobs)
 
@@ -170,12 +175,13 @@ func JobControl(targets []*targets.Target, selOptions options.Options) {
 			break
 		}
 	}
-	defer close(jobChannel)
-	defer close(resultChannel)
+
 	for _, target := range targets {
 		target.PrintResults()
 	}
 }
+
+// generate the different possible combinations for IKEv1 transforms according to the scanmode
 func (s *Scan) GetIKEv1SAs(aggrMode bool) []transforms.SingleSAIKEv1 {
 	var encAlgos, hashAlgos, authMethods, dhGroups []uint16
 	switch s.Mode {
@@ -202,6 +208,8 @@ func (s *Scan) GetIKEv1SAs(aggrMode bool) []transforms.SingleSAIKEv1 {
 	}
 	return genAllPossibleSAsIKEv1(encAlgos, hashAlgos, authMethods, dhGroups, aggrMode)
 }
+
+// generate the different possible combinations for IKEv2 transforms according to the scanmode
 func (s *Scan) GetIKEv2SAs() []transforms.SingleSAIKEv2 {
 	var encAlgos, prfAlgos, integAlgos, kexAlgos []uint16
 	switch s.Mode {
@@ -230,10 +238,6 @@ func (s *Scan) GetIKEv2SAs() []transforms.SingleSAIKEv2 {
 }
 func genAllPossibleSAsIKEv1(encAlgos, hashAlgos, authMethods, dhGroups []uint16, aggrMode bool) []transforms.SingleSAIKEv1 {
 	sas := make([]transforms.SingleSAIKEv1, 0)
-	//encAlgos := IKEConst.GetIKEv1EncAlgos()
-	//hashAlgos := IKEConst.GetIKEv1HashAlgos()
-	//authMethods := IKEConst.GetIKEv1AuthMethods()
-	//dhGroups := IKEConst.GetIKEv1DHGroups()
 
 	for _, enc := range encAlgos {
 		keyLengths := IKEConst.GetPossibleKeyLengthsForEncIKEv1(enc)
@@ -260,10 +264,7 @@ func genAllPossibleSAsIKEv1(encAlgos, hashAlgos, authMethods, dhGroups []uint16,
 }
 func genAllPossibleSAsIKEv2(encAlgos, prfAlgos, integAlgos, kexAlgos []uint16) []transforms.SingleSAIKEv2 {
 	sas := make([]transforms.SingleSAIKEv2, 0)
-	//encAlgos := IKEConst.GetIKEv2EncAlgos()
-	//integAlgos := IKEConst.GetIKEv2IntegrityAlgos()
-	//prfAlgos := IKEConst.GetIKEv2PRFAlgos()
-	//kexAlgos := IKEConst.GetIKEv2KEXMethods()
+
 	for _, enc := range encAlgos {
 		keyLengths := IKEConst.GetPossibleKeyLengthsForEncIKEv2(enc)
 		for _, keyLength := range keyLengths {
@@ -340,7 +341,6 @@ func ScanMultipleSAsIKEv1(srcIP, srcPort string, target *targets.Target, sas []t
 	}
 	fmt.Printf("\nDone scanning IKEv1 transforms for target: %s:%s\n", target.IP, target.Port)
 
-	//fmt.Printf("Target struct: %+v\n", target)
 }
 func ScanMultipleSAsIKEv2(srcIP, srcPort string, target *targets.Target, sas []transforms.SingleSAIKEv2, verbose bool, timeout int) {
 
@@ -365,7 +365,6 @@ func ScanMultipleSAsIKEv2(srcIP, srcPort string, target *targets.Target, sas []t
 
 	fmt.Printf("\nDone scanning IKEv2 transforms for target: %s:%s\n", target.IP, target.Port)
 
-	//fmt.Printf("Target struct: %+v\n", target)
 }
 func ScanIKEv2(srcIP, srcPort string, target *targets.Target, status bool, mode byte, timeout int) {
 

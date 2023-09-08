@@ -12,27 +12,29 @@ import (
 )
 
 func main() {
+	// parse flags and show help options
 	selOptions := initFlags()
 	flag.Parse()
-	//if !ikev1scan && !ikev2scan && !cve202330570 {
-	//	help = true
-	//}
 	if selOptions.Help || (!selOptions.IKEv1 && !selOptions.IKEv2) {
 
 		flag.PrintDefaults()
 		return
 	}
+
 	// parse the targets. If only a single target was supplied the list will contain only this target.
 	targetList, err := selOptions.GetTargets()
 	if err != nil {
 		fmt.Println("Error while parsing targets. See error log for detail.")
 		return
 	}
-	// test connectivity
+
+	// test connectivity, if the --nd flag is set, targets are set as online
 	for _, target := range targetList {
 		target.IKEv1Supported, target.IKEv2Supported = connectionTesting.TestConnectivity(*target, *selOptions)
 
 	}
+
+	// start scans in either single threaded or multi threaded work
 	if selOptions.Scan {
 		if selOptions.Worker > 1 {
 			if selOptions.LocalPort != "" {
